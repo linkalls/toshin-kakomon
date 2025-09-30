@@ -591,64 +591,28 @@ function downloadFile(
   filename: string,
   debug: boolean = false
 ): Promise<void> {
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
     try {
-      // ブラウザ間のメッセージで大きなdataURLは扱いにくいので
-      // ArrayBuffer を送って background 側で Blob/ObjectURL を作る
-      const buffer = await blob.arrayBuffer();
-      if (debug)
-        console.log(
-          "[TDL] sending buffer size for",
-          filename,
-          buffer.byteLength
-        );
+      // anchor ダウンロードのみを使うシンプルな実装に変更
+      // 拡張フォルダ名の指定を filename に含めているため、
+      // セキュアにファイル名を整形して扱う
+      const safeName = filename.replace(/[\\/:*?"<>|]+/g, "_");
+      // フォルダ名を含む場合は区切り文字で置換して単一ファイル名にする
+      const finalName = safeName.includes("/")
+        ? safeName.replace(/\/+/, " - ")
+        : safeName;
 
-      browser.runtime
-        .sendMessage({
-          type: "DOWNLOAD_FILE",
-          buffer,
-          filename,
-          mime: blob.type,
-        })
-        .then((response) => {
-          if (debug)
-            console.log("[TDL] sendMessage response for", filename, response);
-          if (response && response.success) {
-            resolve();
-          } else {
-            // Downloads API が失敗した場合は従来のダウンロードにフォールバック
-            if (debug)
-              console.warn(
-                "[TDL] Downloads API failed, falling back to anchor download",
-                response
-              );
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            const fallbackName = filename.includes("/")
-              ? filename.split("/").pop() || filename
-              : filename;
-            a.download = fallbackName;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(a.href);
-            resolve();
-          }
-        })
-        .catch((err) => {
-          if (debug) console.log("[TDL] sendMessage error for", filename, err);
-          const a = document.createElement("a");
-          a.href = URL.createObjectURL(blob);
-          const fallbackName2 = filename.includes("/")
-            ? filename.split("/").pop() || filename
-            : filename;
-          a.download = fallbackName2;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(a.href);
-          resolve();
-        });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = finalName;
+      // append -> click -> cleanup
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // 少し遅らせてから revoke
+      setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+      if (debug) console.log("[TDL] anchor download started for", finalName);
+      resolve();
     } catch (e) {
       reject(e);
     }
