@@ -75,7 +75,8 @@ function createDownloadUI() {
       </div>
     </div>
     
-    <div style="margin-bottom: 15px;">
+    <!-- 保存フォルダ名の入力は一時的に無効化 -->
+    <div style="display:none; margin-bottom: 15px;" aria-hidden="true">
       <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #333;">📁 保存フォルダ名:</label>
       <input type="text" id="folder-name" value="東進過去問" 
              style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;" 
@@ -152,10 +153,11 @@ function setupEventListeners(container: HTMLElement) {
       container.querySelectorAll("#subject-checkboxes input:checked")
     ).map((input) => (input as HTMLInputElement).value);
 
-    const folderName =
-      (
-        container.querySelector("#folder-name") as HTMLInputElement
-      ).value.trim() || "東進過去問";
+    // folder-name input is hidden/disabled; get safely with fallback
+    const folderInput = container.querySelector(
+      "#folder-name"
+    ) as HTMLInputElement | null;
+    const folderName = folderInput?.value?.trim() || "東進過去問";
 
     if (selectedSubjects.length === 0) {
       alert("少なくとも1つの教科を選択してください。");
@@ -468,7 +470,8 @@ async function downloadToshinPapers(
         /[\\/:*?"<>|]+/g,
         "_"
       )}-${subject.replace(/[\\/:*?"<>|]+/g, "_")}-問題.pdf`;
-      const fullName = `${folderName}/${baseName}`;
+      // サブフォルダ機能を一時的に無効化: フラットなファイル名で保存する
+      const fullName = baseName; // was: `${folderName}/${baseName}`
       await downloadFile(blob, fullName, debug);
       progressDetails.textContent = `✓ 問題PDF完了 - 解答画像取得中...`;
     } catch (e) {
@@ -500,7 +503,7 @@ async function downloadToshinPapers(
   const progressDetails = uiContainer.querySelector(
     "#progress-details"
   ) as HTMLElement;
-  progressDetails.textContent = `すべてのファイルが "${folderName}" フォルダに保存されました`;
+  progressDetails.textContent = `すべてのファイルがダウンロードフォルダに保存されました`;
 
   setTimeout(() => {
     alert(
@@ -508,7 +511,7 @@ async function downloadToshinPapers(
         new Set(uniqResults.map((r) => r.subject))
       ).join(", ")}\n・ダウンロード件数: ${
         uniqResults.length
-      }件\n・保存先: ダウンロードフォルダ > ${folderName}\n\nファイル形式:\n・問題: PDF\n・解答: GIF画像`
+      }件\n・保存先: ダウンロードフォルダ\n\nファイル形式:\n・問題: PDF\n・解答: GIF画像`
     );
   }, 500);
 }
@@ -566,7 +569,8 @@ async function downloadAnswerImages(
         )}-${subject.replace(/[\\/:*?"<>|]+/g, "_")}-解答${
           gifUrls.length > 1 ? "-" + (i + 1) : ""
         }.gif`;
-        const fullNameImg = `${folderName}/${baseNameImg}`;
+        // サブフォルダ機能を一時的に無効化: フラットなファイル名で保存する
+        const fullNameImg = baseNameImg; // was: `${folderName}/${baseNameImg}`
         await downloadFile(imgBlob, fullNameImg, debug);
       } catch (e) {
         console.warn("解答GIF DL失敗:", gifUrl, e);
